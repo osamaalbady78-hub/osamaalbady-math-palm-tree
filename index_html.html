@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>منصة المراجعة النهائية – الرياضيات المتكاملة – الصف العاشر عام</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--navy:#0b2a5b;--red:#c8102e;--green:#1e7b4f;--gold:#b8860b;--ink:#1f2a44}
+  html,body{font-family:'Cairo','Segoe UI',Tahoma,Arial,sans-serif;color:var(--ink);background:#f4f1ea}
+  body{margin:0}
+  .hero{background:radial-gradient(circle at 15% 20%,rgba(200,16,46,.35),transparent 40%),radial-gradient(circle at 85% 80%,rgba(30,123,79,.4),transparent 45%),linear-gradient(135deg,#071b3d,#0b2a5b 55%,#123f7a)}
+  .pattern{background-image:linear-gradient(30deg,rgba(255,255,255,.05) 12%,transparent 12.5%,transparent 87%,rgba(255,255,255,.05) 87.5%),linear-gradient(150deg,rgba(255,255,255,.05) 12%,transparent 12.5%,transparent 87%,rgba(255,255,255,.05) 87.5%);background-size:48px 84px}
+  /* math */
+  .m{font-family:'Cambria Math','Times New Roman',serif;font-size:1.1em;white-space:nowrap;unicode-bidi:isolate}
+  .frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;line-height:1.15;margin:0 3px}
+  .frac>span:first-child{border-bottom:1.5px solid currentColor;padding:0 4px}
+  .frac>span:last-child{padding:0 4px}
+  .frac.fs{font-size:.8em;margin:0 1px}
+  .rad{white-space:nowrap}.rb{border-top:1.5px solid currentColor;padding:0 2px;margin-right:1px}
+  sup{font-size:.72em;vertical-align:super;line-height:0}
+  /* options */
+  .opt{transition:all .15s;cursor:pointer}
+  .opt:hover:not(.locked){transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.12)}
+  .opt.ok{background:#dcfce7!important;border-color:#16a34a!important}
+  .opt.bad{background:#fee2e2!important;border-color:#dc2626!important}
+  .opt.locked{cursor:default}
+  .pop{animation:pop .35s ease}
+  @keyframes pop{0%{transform:scale(.92);opacity:0}100%{transform:scale(1);opacity:1}}
+  .bar{transition:width .4s ease}
+  .imgslot{border:2px dashed #94a3b8;border-radius:14px;background:repeating-linear-gradient(45deg,#f8fafc,#f8fafc 10px,#f1f5f9 10px,#f1f5f9 20px)}
+  table.dash{border-collapse:collapse;width:100%;font-size:.85rem}
+  table.dash th,table.dash td{border:1px solid #cbd5e1;padding:.35rem .45rem;text-align:center;white-space:nowrap}
+  table.dash th{background:#0b2a5b;color:#fff;position:sticky;top:0}
+  @media print{
+    .no-print{display:none!important}
+    body{background:#fff}
+    .printwrap{overflow:visible!important}
+    table.dash{font-size:.62rem}
+    table.dash th{position:static;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .pc{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"></div>
+
+<script>
+/* =====================================================================
+   منصة المراجعة النهائية التفاعلية – الرياضيات المتكاملة – الصف العاشر عام
+   مجمع زايد التعليمي بالرقايب  |  الأستاذ/ أسامة البادي
+   ---------------------------------------------------------------------
+   * كل البيانات تُحفظ في LocalStorage داخل متصفح الجهاز نفسه.
+   * بنك الأسئلة في المصفوفة LESSONS أدناه، ويمكن تعديله أو إضافة أسئلة
+     من لوحة المعلم (استيراد JSON) دون لمس الكود.
+   * كتابة الرياضيات داخل النصوص:  $ ... $  لتمييز المقدار الرياضي
+        x^{2} أو x^2  = أس      {a|b} = كسر      √{x} أو √3 = جذر
+        ^(1|2) = أس كسري        * = ×           -  = −
+   ===================================================================== */
+
+const TEACHER = 'الأستاذ/ أسامة البادي';
+const SCHOOL  = 'مجمع زايد التعليمي بالرقايب';
+const DEPUTY  = 'فاطمة البلوشي';
+const PASS    = '0099';
+const KEY     = 'zayed_math_review_v1';
+
+/* ---------- مولّدات الأسئلة ---------- */
+const mc=(text,right,wrong,explain,ctx)=>({type:'mcq',text,options:[right,...wrong],answer:0,explain,ctx});
+const tf=(text,ans,explain)=>({type:'tf',text,answer:ans,explain});
+const mt=(text,pairs,explain)=>({type:'match',text,pairs,explain});
+
+/* ---------- بنك الأسئلة حسب دروس الهيكل الوزاري ---------- */
+const LESSONS=[
+ {id:1,unit:1,code:'C1L1',emoji:'➕',title:'جمع وطرح كثيرات الحدود',sci:'الاقتصاد: الربح = الإيراد − التكلفة',q:[
+  mc('أوجد ناتج $(3x^{2}+5x-2)+(x^{2}-2x+7)$ :','4x^{2}+3x+5',['4x^{2}+7x+5','3x^{2}+3x+5','4x^{2}+3x-9'],'نجمع الحدود المتشابهة: $3+1=4$ ، $5-2=3$ ، $-2+7=5$.'),
+  mc('أوجد ناتج $(5x^{2}-3x+4)-(2x^{2}+x-6)$ :','3x^{2}-4x+10',['3x^{2}-2x-2','3x^{2}-4x-2','7x^{2}-2x-2'],'عند الطرح نغيّر إشارة كل حد في الكثيرة الثانية: $-3x-x=-4x$ و $4+6=10$.'),
+  mc('الصيغة القياسية للكثيرة $7+3x-2x^{3}+x^{2}$ هي:','-2x^{3}+x^{2}+3x+7',['7+3x+x^{2}-2x^{3}','-2x^{3}+3x+x^{2}+7','7-2x^{3}+3x+x^{2}'],'الصيغة القياسية: ترتيب الحدود تنازلياً حسب الأس، فالحد الأعلى درجة أولاً.'),
+  tf('درجة كثيرة الحدود $4x^{5}-2x^{2}+9$ تساوي $5$ .',true,'درجة الكثيرة هي أكبر أس للمتغير، وهو $5$ هنا.'),
+  mc('إيراد متجر $R=5x^{2}+20x$ وتكلفته $C=2x^{2}+8x+100$ (بالدرهم). الربح $P=R-C$ يساوي:','3x^{2}+12x-100',['3x^{2}+12x+100','7x^{2}+28x+100','3x^{2}+28x-100'],'$P=(5-2)x^{2}+(20-8)x-100=3x^{2}+12x-100$.',['🏪','اقتصاد']),
+ ]},
+ {id:2,unit:1,code:'C1L3',emoji:'✖️',title:'ضرب كثيرات الحدود',sci:'الهندسة: مساحة المستطيل = الطول × العرض',q:[
+  mc('أوجد ناتج $(x+3)(x+7)$ :','x^{2}+10x+21',['x^{2}+21x+10','x^{2}+10x+10','x^{2}+4x+21'],'FOIL: $x^{2}+7x+3x+21=x^{2}+10x+21$.'),
+  mc('أوجد ناتج $(2x-1)(x+4)$ :','2x^{2}+7x-4',['2x^{2}+9x-4','2x^{2}-7x-4','2x^{2}+7x+4'],'$2x^{2}+8x-x-4=2x^{2}+7x-4$.'),
+  mc('أوجد ناتج $(x^{2}-3x+1)(x+2)$ :','x^{3}-x^{2}-5x+2',['x^{3}-5x^{2}-5x+2','x^{3}-x^{2}-6x+2','x^{3}+x^{2}-5x+2'],'نوزّع: $x^{3}+2x^{2}-3x^{2}-6x+x+2=x^{3}-x^{2}-5x+2$.'),
+  tf('$(x-5)(x+5)=x^{2}-10x-25$',false,'الحدان الأوسطان يلغيان بعضهما: $(x-5)(x+5)=x^{2}-25$.'),
+  mc('مستطيل طوله $(x+5)$ وعرضه $(x+2)$ . مساحته تساوي:','x^{2}+7x+10',['x^{2}+10x+7','2x+14','x^{2}+7x+7'],'المساحة $=(x+5)(x+2)=x^{2}+2x+5x+10=x^{2}+7x+10$.',['📐','هندسة']),
+ ]},
+ {id:3,unit:1,code:'C1L4',emoji:'🔷',title:'نواتج الضرب الخاصة',sci:'التصميم: مساحة ساحة مربعة الشكل',q:[
+  mc('أوجد ناتج $(x+5)^{2}$ :','x^{2}+10x+25',['x^{2}+25','x^{2}+5x+25','x^{2}+10x+10'],'$(a+b)^{2}=a^{2}+2ab+b^{2}$ ⇒ $x^{2}+10x+25$.'),
+  mc('أوجد ناتج $(3x-2)^{2}$ :','9x^{2}-12x+4',['9x^{2}+4','9x^{2}-6x+4','3x^{2}-12x+4'],'$(3x)^{2}-2(3x)(2)+2^{2}=9x^{2}-12x+4$.'),
+  mc('أوجد ناتج ضرب المجموع في الفرق $(x+6)(x-6)$ :','x^{2}-36',['x^{2}+36','x^{2}-12x+36','x^{2}-12'],'$(a+b)(a-b)=a^{2}-b^{2}$ ⇒ $x^{2}-36$.'),
+  tf('$(a+b)^{2}=a^{2}+b^{2}$ لكل عددين $a$ و $b$ .',false,'الصحيح $(a+b)^{2}=a^{2}+2ab+b^{2}$. مثال: $a=1$ و $b=2$ ⇒ $9\\neq5$.'),
+  mc('حديقة مربعة طول ضلعها $(x+4)$ متراً. مساحتها تساوي:','x^{2}+8x+16',['x^{2}+16','x^{2}+4x+16','4x+16'],'المساحة $=(x+4)^{2}=x^{2}+8x+16$.',['🌳','تصميم حدائق']),
+  mt('صِل كل مقدار بناتجه:',[['(x+4)^{2}','x^{2}+8x+16'],['(x-4)^{2}','x^{2}-8x+16'],['(x+4)(x-4)','x^{2}-16']],'مربع المجموع يعطي $+2ab$ ، ومربع الفرق يعطي $-2ab$ ، والمجموع في الفرق يعطي فرق مربعين.'),
+ ]},
+ {id:4,unit:1,code:'C1L5',emoji:'🧩',title:'التحليل بخاصية التوزيع (العامل المشترك)',sci:'الفيزياء: تبسيط القوانين بإخراج عامل مشترك',q:[
+  mc('حلّل $5x^{2}+15x$ :','5x(x+3)',['5(x^{2}+3x)','x(5x+15)','5x(x+15)'],'العامل المشترك الأكبر هو $5x$ ، ونقسم كل حد عليه.'),
+  mc('حلّل تحليلاً كاملاً $12a^{2}b-18ab^{2}$ :','6ab(2a-3b)',['6ab(2a+3b)','6ab(2b-3a)','12ab(a-b)'],'العامل المشترك الأكبر $6ab$ ، والباقي $2a-3b$.'),
+  tf('$4x+8=4(x+2)$',true,'العامل المشترك $4$ ؛ و $4(x+2)=4x+8$ ✓.'),
+  mc('حلّل بالتجميع $x^{3}+3x^{2}+2x+6$ :','(x+3)(x^{2}+2)',['(x+2)(x^{2}+3)','(x-3)(x^{2}+2)','(x+3)(x^{2}-2)'],'$x^{2}(x+3)+2(x+3)=(x+3)(x^{2}+2)$.'),
+  mc('حلّ المعادلة $3x^{2}-12x=0$ :','$x=0$ أو $x=4$',['$x=4$ فقط','$x=0$ أو $x=-4$','$x=0$ فقط'],'$3x(x-4)=0$ ⇒ $x=0$ أو $x=4$ (خاصية الضرب الصفري).'),
+ ]},
+ {id:5,unit:1,code:'C1L6',emoji:'📘',title:'تحليل x² + bx + c وحل المعادلة',sci:'الهندسة: إيجاد أبعاد مستطيل من مساحته',q:[
+  mc('حلّل $x^{2}+9x+20$ :','(x+4)(x+5)',['(x+2)(x+10)','(x+1)(x+20)','(x-4)(x-5)'],'نبحث عن عددين حاصل ضربهما $20$ ومجموعهما $9$ : $4$ و $5$.'),
+  mc('حلّل $x^{2}-7x+12$ :','(x-3)(x-4)',['(x+3)(x+4)','(x-2)(x-6)','(x-1)(x-12)'],'عددان حاصل ضربهما $12$ ومجموعهما $-7$ : $-3$ و $-4$.'),
+  mc('حلّل $x^{2}+2x-15$ :','(x+5)(x-3)',['(x-5)(x+3)','(x+5)(x+3)','(x-15)(x+1)'],'$c$ سالب فالعددان مختلفا الإشارة: حاصل ضربهما $-15$ ومجموعهما $2$ ⇒ $5$ و $-3$.'),
+  mc('حلّ المعادلة $x^{2}-5x+6=0$ :','$x=2$ أو $x=3$',['$x=-2$ أو $x=-3$','$x=1$ أو $x=6$','$x=-1$ أو $x=-6$'],'$(x-2)(x-3)=0$ ⇒ $x=2$ أو $x=3$.'),
+  mc('مستطيل طوله يزيد $3$ م على عرضه ومساحته $40$ م². عرضه يساوي:','$5$ م',['$8$ م','$10$ م','$3$ م'],'$w(w+3)=40$ ⇒ $w^{2}+3w-40=0$ ⇒ $(w+8)(w-5)=0$ ⇒ $w=5$ (نرفض $-8$).',['📐','هندسة']),
+ ]},
+ {id:6,unit:1,code:'C1L7',emoji:'⚽',title:'تحليل ax² + bx + c وحل المعادلة',sci:'الفيزياء والتربية الرياضية: مسار الكرة',q:[
+  mc('حلّل $2x^{2}+7x+3$ :','(2x+1)(x+3)',['(2x+3)(x+1)','(2x+1)(2x+3)','(x+3)(x+1)'],'$ac=6$ ؛ العددان $1$ و $6$ : $2x^{2}+x+6x+3=x(2x+1)+3(2x+1)$.'),
+  mc('حلّل $3x^{2}-10x+8$ :','(3x-4)(x-2)',['(3x+4)(x+2)','(3x-2)(x-4)','(3x-8)(x-1)'],'$ac=24$ ؛ العددان $-4$ و $-6$ : $3x^{2}-4x-6x+8=(3x-4)(x-2)$.'),
+  mc('حلّ المعادلة $2x^{2}+5x-3=0$ :','$x={1|2}$ أو $x=-3$',['$x=-{1|2}$ أو $x=3$','$x={1|2}$ أو $x=3$','$x=-1$ أو $x={3|2}$'],'$(2x-1)(x+3)=0$ ⇒ $x={1|2}$ أو $x=-3$.'),
+  tf('ثلاثية الحدود $2x^{2}+3x+4$ أولية (لا تقبل التحليل بأعداد صحيحة).',true,'$ac=8$ ولا يوجد عددان حاصل ضربهما $8$ ومجموعهما $3$.'),
+  mc('تُقذف كرة فيعطي ارتفاعها $h=-16t^{2}+24t+16$ (قدم). متى تصل الأرض ($h=0$) ؟','$2$ ثانية',['$3$ ثوانٍ','$1.5$ ثانية','$4$ ثوانٍ'],'نقسم على $-8$ : $2t^{2}-3t-2=0$ ⇒ $(2t+1)(t-2)=0$ ⇒ $t=2$ (نرفض الزمن السالب).',['⚽','فيزياء ورياضة']),
+ ]},
+ {id:7,unit:1,code:'C1L8',emoji:'🟦',title:'الفرق بين مربعين',sci:'التصميم: مساحة إطار الصورة',q:[
+  mc('حلّل $x^{2}-49$ :','(x+7)(x-7)',['(x-7)^{2}','(x+7)^{2}','(x-49)(x+1)'],'$a^{2}-b^{2}=(a+b)(a-b)$ ؛ $49=7^{2}$.'),
+  mc('حلّل $4x^{2}-25$ :','(2x+5)(2x-5)',['(4x+5)(4x-5)','(2x-5)^{2}','(2x+5)^{2}'],'$4x^{2}=(2x)^{2}$ و $25=5^{2}$.'),
+  mc('حلّل تحليلاً كاملاً $3x^{2}-75$ :','3(x+5)(x-5)',['(3x+5)(3x-5)','3(x-5)^{2}','3(x^{2}+25)'],'نخرج العامل $3$ : $3(x^{2}-25)=3(x+5)(x-5)$.'),
+  tf('$x^{2}+16=(x+4)^{2}$',false,'$(x+4)^{2}=x^{2}+8x+16$ ؛ ومجموع مربعين لا يُحلَّل في الأعداد الحقيقية.'),
+  mc('حلّ المعادلة $9x^{2}-16=0$ :','$x=\\pm{4|3}$',['$x=\\pm{16|9}$','$x=\\pm{3|4}$','$x=\\pm4$'],'$(3x+4)(3x-4)=0$ ⇒ $x=\\pm{4|3}$.'),
+  mt('صِل كل مقدار بتحليله:',[['x^{2}-9','(x+3)(x-3)'],['4x^{2}-1','(2x+1)(2x-1)'],['25-x^{2}','(5+x)(5-x)']],'نكتب كل حد على صورة مربع ثم نطبّق $(a+b)(a-b)$.'),
+ ]},
+ {id:8,unit:1,code:'C1L9',emoji:'🔶',title:'المربعات الكاملة',sci:'الفيزياء: السقوط الحر h = −16t² + h₀',q:[
+  mc('حلّل $x^{2}+10x+25$ :','(x+5)^{2}',['(x+5)(x-5)','(x-5)^{2}','(x+25)(x+1)'],'$x^{2}+2(x)(5)+5^{2}=(x+5)^{2}$.'),
+  mc('حلّل $9y^{2}-12y+4$ :','(3y-2)^{2}',['(3y+2)^{2}','(9y-2)(y-2)','(3y-4)^{2}'],'$(3y)^{2}-2(3y)(2)+2^{2}=(3y-2)^{2}$.'),
+  mc('أيّ ثلاثيات الحدود الآتية مربع كامل؟','x^{2}+6x+9',['x^{2}+6x+6','x^{2}+4x+9','x^{2}+9x+6'],'الحد الأوسط يجب أن يساوي $2\\times$ جذر الأول $\\times$ جذر الأخير: $2(x)(3)=6x$ ✓.'),
+  mc('حلّ المعادلة $x^{2}+8x+16=0$ :','$x=-4$',['$x=4$','$x=\\pm4$','$x=8$'],'$(x+4)^{2}=0$ ⇒ $x=-4$ (جذر مكرر).'),
+  mc('يسقط جسم من ارتفاع $64$ قدماً، ويعطي ارتفاعه $h=-16t^{2}+64$ . يصل إلى الأرض بعد:','$2$ ثانية',['$4$ ثوانٍ','$16$ ثانية','$1$ ثانية'],'$-16t^{2}+64=0$ ⇒ $t^{2}=4$ ⇒ $t=2$ (نرفض $-2$).',['🏗️','فيزياء']),
+ ]},
+ {id:9,unit:2,code:'C2L1',emoji:'🔢',title:'خواص ضرب الأسس',sci:'الفيزياء: E = mc²',q:[
+  mc('بسّط $x^{3}\\times x^{4}$ :','x^{7}',['x^{12}','x^{1}','2x^{7}'],'عند الضرب نجمع الأسس: $3+4=7$.'),
+  mc('بسّط $(2x^{3})(5x^{2})$ :','10x^{5}',['10x^{6}','7x^{5}','25x^{5}'],'نضرب المعاملات $2\\times5=10$ ونجمع الأسس $3+2=5$.'),
+  mc('بسّط $(x^{2})^{3}$ :','x^{6}',['x^{5}','x^{8}','x^{9}'],'عند رفع قوة لقوة نضرب الأسس: $2\\times3=6$.'),
+  mc('بسّط $(3a^{2}b)^{2}$ :','9a^{4}b^{2}',['3a^{4}b^{2}','9a^{2}b^{2}','6a^{4}b^{2}'],'نرفع كل عامل للقوة $2$ بما فيها المعامل: $3^{2}=9$.'),
+  tf('$(2x)^{3}=2x^{3}$',false,'$(2x)^{3}=2^{3}x^{3}=8x^{3}$.'),
+  mt('صِل كل تعبير بناتجه:',[['x^{2}*x^{3}','x^{5}'],['(x^{2})^{3}','x^{6}'],['(2x)^{2}','4x^{2}']],'الضرب: نجمع الأسس. رفع قوة لقوة: نضرب الأسس. قوة لناتج ضرب: نوزّع الأس.'),
+ ]},
+ {id:10,unit:2,code:'C2L2',emoji:'➗',title:'خواص قسمة الأسس',sci:'التقنية: مقارنة سعات التخزين 2³⁰ ÷ 2²⁰',q:[
+  mc('بسّط ${x^9|x^3}$ :','x^{6}',['x^{3}','x^{12}','x^{27}'],'عند القسمة نطرح الأسس: $9-3=6$.'),
+  mc('بسّط ${12a^5b^2|4a^2b}$ :','3a^{3}b',['8a^{3}b','3a^{7}b^{3}','3a^{3}'],'$12\\div4=3$ ؛ $a^{5-2}=a^{3}$ ؛ $b^{2-1}=b$.'),
+  mc('بسّط $({2x|3})^{2}$ :','{4x^2|9}',['{4x^2|3}','{2x^2|9}','{4x|9}'],'نرفع البسط والمقام للقوة $2$ : ${(2x)^2|3^2}={4x^2|9}$.'),
+  mc('قيمة $2^{-3}$ تساوي:','{1|8}',['-8','{1|6}','-6'],'الأس السالب: $a^{-n}={1|a^n}$ ⇒ $2^{-3}={1|2^3}={1|8}$.'),
+  tf('$x^{0}=0$ لكل $x\\neq0$ .',false,'الأس الصفري: $x^{0}=1$ لأي $x\\neq0$.'),
+  mt('صِل كل تعبير بقيمته:',[['{x^5|x^2}','x^{3}'],['x^{0}','1'],['x^{-2}','{1|x^2}']],'القسمة: نطرح الأسس. الأس الصفري يعطي $1$. الأس السالب يعني مقلوب القوة الموجبة.'),
+ ]},
+ {id:11,unit:2,code:'C2L3',emoji:'🔑',title:'الأسس النسبية',sci:'الأحياء والطب: عامل الحماية من الشمس p = 50f^0.2',q:[
+  mc('احسب $25^(1|2)$ :','5',['12.5','25','625'],'الأس $\\frac12$ يعني الجذر التربيعي: $\\sqrt{25}=5$.'),
+  mc('احسب $8^(2|3)$ :','4',['2','16','8'],'$8^(2|3)=(\\sqrt[3]{8})^{2}=2^{2}=4$.'),
+  mc('احسب $16^(3|4)$ :','8',['12','64','2'],'$(\\sqrt[4]{16})^{3}=2^{3}=8$.'),
+  mc('حلّ المعادلة $4^{x}=32$ :','$x={5|2}$',['$x=8$','$x=5$','$x={2|5}$'],'نوحّد الأساس: $2^{2x}=2^{5}$ ⇒ $2x=5$ ⇒ $x={5|2}$.'),
+  tf('$27^(1|3)=9$',false,'$27^(1|3)=\\sqrt[3]{27}=3$ لأنّ $3^{3}=27$.'),
+ ]},
+ {id:12,unit:2,code:'C2L4',emoji:'🚀',title:'الترميز العلمي',sci:'الفلك: المسافات الكبيرة وسرعة الضوء',q:[
+  mc('اكتب $450{,}000$ بالترميز العلمي:','4.5*10^{5}',['45*10^{4}','4.5*10^{6}','4.5*10^{4}'],'ننقل الفاصلة $5$ منازل إلى اليسار ⇒ $4.5\\times10^{5}$ (والمعامل بين $1$ و $10$).'),
+  mc('اكتب $0.00032$ بالترميز العلمي:','3.2*10^{-4}',['3.2*10^{4}','3.2*10^{-3}','32*10^{-5}'],'ننقل الفاصلة $4$ منازل إلى اليمين ⇒ الأس سالب: $3.2\\times10^{-4}$.'),
+  mc('أوجد $(2\\times10^{4})(3\\times10^{5})$ :','6*10^{9}',['6*10^{20}','5*10^{9}','6*10^{-1}'],'نضرب المعاملات $2\\times3=6$ ونجمع الأسس $4+5=9$.'),
+  mc('أوجد ${8*10^9|4*10^3}$ :','2*10^{6}',['2*10^{3}','4*10^{6}','2*10^{12}'],'نقسم المعاملات $8\\div4=2$ ونطرح الأسس $9-3=6$.'),
+  tf('العدد $12\\times10^{3}$ مكتوب بالترميز العلمي الصحيح.',false,'المعامل $12$ ليس بين $1$ و $10$ ؛ الصحيح $1.2\\times10^{4}$.'),
+  mt('صِل كل عدد بترميزه العلمي:',[['3{,}000','3*10^{3}'],['0.003','3*10^{-3}'],['30{,}000','3*10^{4}']],'عدد كبير ⇒ أس موجب. عدد أقل من $1$ ⇒ أس سالب.'),
+ ]},
+ {id:13,unit:2,code:'C2L5',emoji:'√',title:'تبسيط التعابير الجذرية',sci:'الكهرباء: التيار I = √(P/R)',q:[
+  mc('بسّط $\\sqrt{72}$ :','6√2',['36√2','4√3','6√3'],'$72=36\\times2$ ⇒ $\\sqrt{72}=\\sqrt{36}\\times\\sqrt2=6\\sqrt2$.'),
+  mc('بسّط $\\sqrt{50}$ :','5√2',['25√2','2√5','5√10'],'$50=25\\times2$ ⇒ $5\\sqrt2$.'),
+  mc('بسّط $\\sqrt{12}\\times\\sqrt{3}$ :','6',['√15','36','4'],'$\\sqrt{12\\times3}=\\sqrt{36}=6$.'),
+  mc('اجعل المقام نسبياً: ${1|√3}$ :','{√3|3}',['{1|3}','√3','{3|√3}'],'نضرب البسط والمقام في $\\sqrt3$ : ${\\sqrt3|3}$.'),
+  tf('$\\sqrt{x^2}=x$ لكل عدد حقيقي $x$ .',false,'$\\sqrt{x^2}=|x|$ ؛ مثال $x=-3$ : $\\sqrt9=3\\neq-3$.'),
+  mt('صِل كل جذر بتبسيطه:',[['√8','2√2'],['√18','3√2'],['√50','5√2']],'نبحث عن أكبر مربع كامل يقسم العدد: $4$ ثم $9$ ثم $25$.'),
+ ]},
+ {id:14,unit:2,code:'C2L6',emoji:'🧮',title:'العمليات على التعابير الجذرية',sci:'الهندسة: أبعاد وقطر المربع بالجذور',q:[
+  mc('أوجد $3\\sqrt5+2\\sqrt5$ :','5√5',['5√10','6√5','5'],'الجذران متشابهان فنجمع المعاملين: $3+2=5$.'),
+  mc('أوجد $\\sqrt{12}+\\sqrt3$ :','3√3',['√15','2√3','4√3'],'$\\sqrt{12}=2\\sqrt3$ ⇒ $2\\sqrt3+\\sqrt3=3\\sqrt3$.'),
+  mc('أوجد $\\sqrt2\\times\\sqrt8$ :','4',['√10','16','2√2'],'$\\sqrt{16}=4$.'),
+  mc('أوجد $(\\sqrt5+2)(\\sqrt5-2)$ :','1',['9','7','-1'],'فرق مربعين: $(\\sqrt5)^{2}-2^{2}=5-4=1$.'),
+  tf('$\\sqrt9+\\sqrt{16}=\\sqrt{25}$',false,'$3+4=7$ بينما $\\sqrt{25}=5$ ؛ لا يمكن جمع الجذور تحت جذر واحد.'),
+ ]},
+];
+
+/* ======================= أدوات مساعدة ======================= */
+const AR=/[\u0600-\u06FF]/;
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function mathHTML(m){
+  m=esc(m);
+  m=m.replace(/\\sqrt\[(\d+)\]\{([^{}]+)\}/g,'<span class="rad"><sup>$1</sup>√<span class="rb">$2</span></span>');
+  m=m.replace(/\\sqrt\{([^{}]+)\}/g,'√{$1}').replace(/\\sqrt(\d+)/g,'√$1');
+  m=m.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g,'{$1|$2}').replace(/\\frac12/g,'{1|2}');
+  m=m.replace(/\\times/g,'×').replace(/\\div/g,'÷').replace(/\\pm/g,'±').replace(/\\neq/g,'≠').replace(/\{,\}/g,',');
+  m=m.replace(/-/g,'−').replace(/\*/g,'×');
+  m=m.replace(/√\{([^{}]+)\}/g,'<span class="rad">√<span class="rb">$1</span></span>');
+  m=m.replace(/√(\d+|[a-zA-Z])/g,'<span class="rad">√<span class="rb">$1</span></span>');
+  m=m.replace(/\^\((\d+)\|(\d+)\)/g,'<sup><span class="frac fs"><span>$1</span><span>$2</span></span></sup>');
+  m=m.replace(/\{([^{}|]+)\|([^{}|]+)\}/g,'<span class="frac"><span>$1</span><span>$2</span></span>');
+  m=m.replace(/\^\{([^{}]+)\}/g,'<sup>$1</sup>').replace(/\^(−?\d+|[a-zA-Z])/g,'<sup>$1</sup>');
+  return '<bdi dir="ltr" class="m">'+m+'</bdi>';
+}
+function fmt(s){
+  return String(s).split(/(\$[^$]+\$)/).map(p=>(p.length>2&&p[0]==='$'&&p[p.length-1]==='$')?mathHTML(p.slice(1,-1)):esc(p)).join('');
+}
+function fmtOpt(s){ return (AR.test(s)||s.includes('$'))?fmt(s):mathHTML(s); }
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const $=(s,r=document)=>r.querySelector(s);
+const fmtDate=t=>t?new Date(t).toLocaleString('ar-AE',{dateStyle:'short',timeStyle:'short'}):'—';
+
+/* ======================= التخزين المحلي ======================= */
+let memDB=null;
+function emptyDB(){return {students:{},custom:[]};}
+function loadDB(){
+  try{const r=localStorage.getItem(KEY);if(r){const d=JSON.parse(r);d.students=d.students||{};d.custom=d.custom||[];return d;}}catch(e){}
+  return memDB||emptyDB();
+}
+function saveDB(){
+  memDB=DB;
+  try{localStorage.setItem(KEY,JSON.stringify(DB));return true;}
+  catch(e){toast('⚠️ تعذّر الحفظ في المتصفح (قد يكون وضع التصفح الخاص مفعّلاً).');return false;}
+}
+let DB=loadDB();
+const sid=(n,s)=>(n.trim().replace(/\s+/g,' ')+'|'+s.trim()).toLowerCase();
+
+function lessonQuestions(l){
+  const extra=DB.custom.filter(c=>+c.lesson===l.id).map(c=>({type:c.type||'mcq',text:c.text,options:c.options,answer:c.answer,pairs:c.pairs,explain:c.explain||'',img:c.img,ctx:c.ctx}));
+  return l.q.concat(extra);
+}
+
+/* ======================= الحالة العامة ======================= */
+const S={view:'landing',student:null,role:null,lesson:null,qs:[],qi:0,res:[],locked:false,fq:'',fsec:'',tab:'students'};
+
+/* ======================= رسائل التشجيع ======================= */
+const GOOD=['بطل! استمر 💪','أحسنت! إجابة دقيقة 👏','ممتاز! أنت نجم الرياضيات ⭐','رائع! واصل التقدم 🚀','عمل متقن، تابع هكذا 🌟','إجابة صحيحة! فخورون بك 🏅'];
+const BAD=['أحسنت المحاولة، ركّز في النقطة القادمة 🌱','لا بأس! راجع التفسير وستُصيب في التالي 💡','قريب جداً! الخطأ يقرّبك من الإتقان 🔁','لا تستسلم، أنت قادر على ذلك 💪'];
+function endMsg(p){
+  if(p>=90) return ['🏆','مبدع! أنت خبير في هذا الدرس'];
+  if(p>=70) return ['🌟','متمكّن! اقتربت من الإتقان'];
+  if(p>=50) return ['💪','جهد جيد، راجع الأخطاء وأعد المحاولة'];
+  return ['🌱','لا تيأس! كل محاولة تقرّبك من النجاح'];
+}
+const pcol=p=>p>=85?'bg-green-100 text-green-800':p>=60?'bg-amber-100 text-amber-800':'bg-red-100 text-red-800';
+
+/* ======================= واجهات صغيرة ======================= */
+function toast(msg){
+  const t=document.createElement('div');
+  t.className='fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-4 py-2 rounded-xl shadow-lg z-50 text-sm no-print';
+  t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3200);
+}
+function openModal(html){const m=$('#modal');m.innerHTML='<div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md pop">'+html+'</div>';m.classList.remove('hidden');}
+function closeModal(){const m=$('#modal');m.classList.add('hidden');m.innerHTML='';}
+function askPassword(role){
+  openModal(`<h3 class="text-xl font-extrabold text-[#0b2a5b] mb-1">${role==='teacher'?'دخول المعلم':'دخول النائبة الأكاديمية'}</h3>
+    <p class="text-sm text-slate-500 mb-4">${role==='teacher'?esc(TEACHER):'أ. '+esc(DEPUTY)}</p>
+    <input id="pw" type="password" inputmode="numeric" autocomplete="off" placeholder="كلمة السر" class="w-full border-2 border-slate-300 rounded-xl px-4 py-3 text-center text-lg tracking-widest focus:outline-none focus:border-[#0b2a5b]">
+    <p id="pwerr" class="text-red-600 text-sm mt-2 h-5"></p>
+    <div class="flex gap-2 mt-3"><button data-act="pwok" data-role="${role}" class="flex-1 bg-[#0b2a5b] text-white font-bold py-3 rounded-xl">دخول</button>
+    <button data-act="closemodal" class="px-5 bg-slate-200 rounded-xl font-bold">إلغاء</button></div>`);
+  setTimeout(()=>{const p=$('#pw');if(p){p.focus();p.addEventListener('keydown',e=>{if(e.key==='Enter')checkPw(role);});}},50);
+}
+function checkPw(role){
+  const v=($('#pw')||{}).value;
+  if(v===PASS){closeModal();S.role=role;S.view='dash';S.tab='students';render();}
+  else{const e=$('#pwerr');if(e)e.textContent='كلمة السر غير صحيحة';}
+}
+
+/* ======================= الشاشة الرئيسية (الغلاف) ======================= */
+function landing(){
+  return `
+  <div class="hero pattern min-h-screen text-white flex flex-col">
+    <div class="max-w-5xl w-full mx-auto px-4 pt-8 pb-4 text-center">
+      <div class="inline-flex items-center gap-2 bg-white/10 border border-white/25 rounded-full px-4 py-1 text-sm mb-4">🇦🇪 دولة الإمارات العربية المتحدة – وزارة التربية والتعليم</div>
+      <h1 class="text-3xl md:text-5xl font-extrabold leading-tight">${esc(SCHOOL)}</h1>
+      <p class="mt-3 text-lg md:text-2xl text-amber-300 font-bold">منصة المراجعة النهائية التفاعلية</p>
+      <p class="mt-1 text-base md:text-lg text-white/90">الرياضيات المتكاملة – الصف العاشر العام – الفصل الدراسي الأول 2026-2027</p>
+      <p class="mt-3 text-base md:text-lg">إعداد المعلم: <span class="font-bold text-amber-300">${esc(TEACHER)}</span></p>
+    </div>
+    <div class="flex-1 flex items-start justify-center px-4 pb-10">
+      <div class="bg-white text-[#1f2a44] rounded-3xl shadow-2xl w-full max-w-lg p-6 md:p-8 pop">
+        <h2 class="text-xl font-extrabold text-[#0b2a5b] mb-1">🎓 دخول الطالب</h2>
+        <p class="text-sm text-slate-500 mb-4">اكتب بياناتك ثم ابدأ المراجعة. تُحفظ درجاتك على هذا الجهاز.</p>
+        <label class="block text-sm font-bold mb-1">اسم الطالب</label>
+        <input id="sname" type="text" maxlength="60" placeholder="الاسم الثلاثي" class="w-full border-2 border-slate-300 rounded-xl px-4 py-3 mb-3 focus:outline-none focus:border-[#0b2a5b]">
+        <label class="block text-sm font-bold mb-1">الشعبة</label>
+        <input id="ssec" type="text" maxlength="12" list="secs" placeholder="مثال: 10/2" class="w-full border-2 border-slate-300 rounded-xl px-4 py-3 mb-1 focus:outline-none focus:border-[#0b2a5b]">
+        <datalist id="secs">${[1,2,3,4,5,6,7,8].map(i=>`<option value="10/${i}">`).join('')}</datalist>
+        <p id="lerr" class="text-red-600 text-sm h-5 mb-1"></p>
+        <button data-act="start" class="w-full bg-[#c8102e] hover:bg-[#a30d25] text-white font-extrabold text-lg py-3 rounded-xl shadow">ابدأ حل الأسئلة 🚀</button>
+        <div class="grid grid-cols-2 gap-2 mt-5 pt-5 border-t border-slate-200">
+          <button data-act="teacher" class="bg-[#0b2a5b] text-white font-bold py-2.5 rounded-xl text-sm">👨‍🏫 دخول المعلم</button>
+          <button data-act="deputy" class="bg-[#1e7b4f] text-white font-bold py-2.5 rounded-xl text-sm">📋 النائبة الأكاديمية<br><span class="font-normal text-xs">${esc(DEPUTY)}</span></button>
+        </div>
+      </div>
+    </div>
+    <p class="text-center text-white/70 text-xs pb-4">📌 14 درساً حسب هيكل الاختبار الوزاري – مع تغذية راجعة فورية لكل سؤال</p>
+  </div>`;
+}
+
+/* ======================= شاشة الدروس للطالب ======================= */
+function studentRec(){return DB.students[S.student.id];}
+function home(){
+  const rec=studentRec();
+  const done=LESSONS.filter(l=>rec.lessons[l.id]);
+  const avg=done.length?Math.round(done.reduce((a,l)=>a+rec.lessons[l.id].best,0)/done.length):0;
+  const prog=Math.round(done.length/LESSONS.length*100);
+  const units=[[1,'الوحدة الأولى: التعابير والمعادلات التربيعية','from-[#0b2a5b] to-[#1d4f9a]'],[2,'الوحدة الثانية: الأسس والتعابير الجذرية','from-[#1e7b4f] to-[#2aa36b]']];
+  return `
+  <div class="max-w-6xl mx-auto p-4 md:p-6">
+    <div class="hero pattern text-white rounded-3xl p-5 md:p-7 flex flex-wrap items-center gap-4 justify-between">
+      <div><p class="text-amber-300 text-sm font-bold">${esc(SCHOOL)}</p>
+        <h1 class="text-2xl md:text-3xl font-extrabold">مرحباً ${esc(S.student.name)} 👋</h1>
+        <p class="text-white/85">الشعبة: ${esc(S.student.section)} &nbsp;|&nbsp; المعلم: ${esc(TEACHER)}</p></div>
+      <div class="min-w-[220px]">
+        <div class="flex justify-between text-sm mb-1"><span>الدروس المنجزة ${done.length}/${LESSONS.length}</span><span>المعدل ${avg}%</span></div>
+        <div class="h-3 bg-white/25 rounded-full overflow-hidden"><div class="bar h-full bg-amber-400" style="width:${prog}%"></div></div>
+        <div class="flex gap-2 mt-3"><button data-act="exportme" class="bg-white/15 hover:bg-white/25 border border-white/30 rounded-lg px-3 py-1.5 text-sm">📥 حفظ نتيجتي</button>
+        <button data-act="logout" class="bg-white/15 hover:bg-white/25 border border-white/30 rounded-lg px-3 py-1.5 text-sm">خروج</button></div>
+      </div>
+    </div>
+    ${units.map(([u,title,grad])=>`
+      <h2 class="mt-7 mb-3 text-lg md:text-xl font-extrabold text-[#0b2a5b]">${title}</h2>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      ${LESSONS.filter(l=>l.unit===u).map(l=>{
+        const r=rec.lessons[l.id];const n=lessonQuestions(l).length;
+        return `<div class="bg-white rounded-2xl shadow hover:shadow-lg transition p-4 flex flex-col border-t-4 ${u===1?'border-[#0b2a5b]':'border-[#1e7b4f]'}">
+          <div class="flex items-start justify-between gap-2">
+            <div class="text-3xl">${l.emoji}</div>
+            ${r?`<span class="pc text-sm font-extrabold px-3 py-1 rounded-full ${pcol(r.best)}">أفضل: ${r.best}%</span>`:'<span class="text-xs bg-slate-100 text-slate-500 px-3 py-1 rounded-full">لم تبدأ بعد</span>'}
+          </div>
+          <h3 class="font-extrabold mt-2 leading-snug">${esc(l.title)}</h3>
+          <p class="text-xs text-slate-500 mt-1">${esc(l.sci)}</p>
+          <p class="text-xs text-slate-400 mt-1">${n} أسئلة ${r?'· المحاولات: '+r.attempts:''}</p>
+          <button data-act="lesson" data-id="${l.id}" class="mt-3 bg-gradient-to-l ${grad} text-white font-bold py-2 rounded-xl">${r?'أعد المحاولة 🔁':'ابدأ الدرس ▶'}</button>
+        </div>`;}).join('')}
+      </div>`).join('')}
+  </div>`;
+}
+
+/* ======================= شاشة الأسئلة ======================= */
+function prep(q){
+  const p={...q};
+  if(q.type==='mcq'){const idx=shuffle(q.options.map((_,i)=>i));p.order=idx;p.correctPos=idx.indexOf(q.answer);}
+  if(q.type==='match'){p.rightOrder=shuffle(q.pairs.map((_,i)=>i));}
+  return p;
+}
+function startLesson(id){
+  const l=LESSONS.find(x=>x.id===id);
+  S.lesson=l;S.qs=shuffle(lessonQuestions(l)).map(prep);S.qi=0;S.res=[];S.locked=false;S.view='quiz';render();window.scrollTo(0,0);
+}
+function ctxBlock(q){
+  if(q.img) return `<div class="mb-3 text-center"><img src="${esc(q.img)}" alt="صورة توضيحية" class="max-h-56 mx-auto rounded-xl border" onerror="this.style.display='none'"></div>`;
+  if(q.ctx) return `<div class="imgslot flex items-center gap-3 p-3 mb-3"><div class="text-4xl">${q.ctx[0]}</div><div class="text-sm text-slate-600"><b>علوم متكاملة: ${esc(q.ctx[1])}</b><br><span class="text-xs">🖼️ مكان مخصّص لصورة توضيحية (أضف رابط الصورة في الحقل <code>img</code> من لوحة المعلم).</span></div></div>`;
+  return '';
+}
+function quiz(){
+  const l=S.lesson,q=S.qs[S.qi],n=S.qs.length;
+  const pct=Math.round(S.qi/n*100);
+  let body='';
+  if(q.type==='mcq'){
+    body=q.order.map((oi,pos)=>`<button data-act="opt" data-pos="${pos}" class="opt w-full text-right bg-white border-2 border-slate-300 rounded-xl px-4 py-3 flex items-center gap-3 text-lg">
+      <span class="shrink-0 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-sm">${'أبجد'[pos]}</span><span class="flex-1">${fmtOpt(q.options[oi])}</span></button>`).join('');
+    body=`<div class="grid gap-3">${body}</div>`;
+  }else if(q.type==='tf'){
+    body=`<div class="grid grid-cols-2 gap-3"><button data-act="tf" data-v="1" class="opt bg-white border-2 border-slate-300 rounded-xl py-4 text-xl font-extrabold">✅ صح</button><button data-act="tf" data-v="0" class="opt bg-white border-2 border-slate-300 rounded-xl py-4 text-xl font-extrabold">❌ خطأ</button></div>`;
+  }else if(q.type==='match'){
+    body=`<div class="grid gap-3">${q.pairs.map((p,i)=>`<div class="flex flex-wrap items-center gap-2 bg-white border-2 border-slate-200 rounded-xl p-3" id="mrow${i}">
+      <div class="flex-1 min-w-[120px] text-lg text-center">${fmtOpt(p[0])}</div><div class="text-slate-400">⟷</div>
+      <select class="msel flex-1 min-w-[140px] border-2 border-slate-300 rounded-lg px-2 py-2 text-lg bg-white" data-i="${i}"><option value="">— اختر —</option>${q.rightOrder.map(ri=>`<option value="${ri}">${q.pairs[ri][1].replace(/[$]/g,'').replace(/\\sqrt/g,'√').replace(/\^\{([^{}]+)\}/g,'^$1').replace(/\{([^{}|]+)\|([^{}|]+)\}/g,'($1)/($2)')}</option>`).join('')}</select></div>`).join('')}
+      </div><button data-act="checkmatch" class="mt-4 w-full bg-[#0b2a5b] text-white font-bold py-3 rounded-xl">تحقّق من المطابقة ✔</button>`;
+  }
+  const tag={mcq:'اختيار من متعدد',tf:'صح أم خطأ',match:'مطابقة'}[q.type];
+  return `
+  <div class="max-w-3xl mx-auto p-4 md:p-6">
+    <div class="flex items-center justify-between gap-2 mb-3">
+      <button data-act="home" class="text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5">↩ الدروس</button>
+      <div class="text-center flex-1"><div class="font-extrabold text-[#0b2a5b]">${l.emoji} ${esc(l.title)}</div><div class="text-xs text-slate-500">${esc(S.student.name)} · ${esc(S.student.section)}</div></div>
+      <div class="text-sm font-bold bg-white border border-slate-300 rounded-lg px-3 py-1.5">${S.qi+1} / ${n}</div>
+    </div>
+    <div class="h-2.5 bg-slate-200 rounded-full overflow-hidden mb-4"><div class="bar h-full bg-gradient-to-l from-[#c8102e] to-[#1e7b4f]" style="width:${pct}%"></div></div>
+    <div class="bg-white rounded-3xl shadow-lg p-5 md:p-7 pop">
+      <div class="flex items-center justify-between mb-3"><span class="text-xs font-bold bg-[#0b2a5b]/10 text-[#0b2a5b] rounded-full px-3 py-1">${tag}</span><span class="text-xs text-slate-400">${l.code}</span></div>
+      ${ctxBlock(q)}
+      <p class="text-lg md:text-xl font-bold leading-relaxed mb-5">${fmt(q.text)}</p>
+      ${body}
+      <div id="fb"></div>
+    </div>
+  </div>`;
+}
+function feedback(ok,q,extra){
+  S.locked=true;S.res[S.qi]=ok;
+  const last=S.qi===S.qs.length-1;
+  $('#fb').innerHTML=`<div class="mt-5 rounded-2xl p-4 pop ${ok?'bg-green-50 border-2 border-green-300':'bg-red-50 border-2 border-red-300'}">
+    <div class="text-lg font-extrabold ${ok?'text-green-700':'text-red-700'}">${ok?'✅ إجابة صحيحة':'❌ إجابة غير صحيحة'} <span class="text-base font-bold">— ${pick(ok?GOOD:BAD)}</span></div>
+    ${extra||''}
+    <p class="mt-2 text-slate-700 leading-relaxed"><b>التفسير:</b> ${fmt(q.explain||'')}</p>
+    <button data-act="next" class="mt-4 bg-[#0b2a5b] text-white font-bold px-6 py-2.5 rounded-xl">${last?'إنهاء الدرس وعرض الدرجة 🏁':'السؤال التالي ◀'}</button></div>`;
+  $('#fb').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function answerMcq(pos){
+  if(S.locked)return;const q=S.qs[S.qi];const ok=pos===q.correctPos;
+  document.querySelectorAll('[data-act="opt"]').forEach((b,i)=>{b.classList.add('locked');if(i===q.correctPos)b.classList.add('ok');else if(i===pos)b.classList.add('bad');});
+  feedback(ok,q,ok?'':`<p class="mt-1 text-slate-700">الإجابة الصحيحة: ${fmtOpt(q.options[q.answer])}</p>`);
+}
+function answerTf(v){
+  if(S.locked)return;const q=S.qs[S.qi];const ok=(v===q.answer);
+  document.querySelectorAll('[data-act="tf"]').forEach(b=>{b.classList.add('locked');const bv=b.dataset.v==='1';if(bv===q.answer)b.classList.add('ok');else if(bv===v)b.classList.add('bad');});
+  feedback(ok,q,ok?'':`<p class="mt-1 text-slate-700">الإجابة الصحيحة: <b>${q.answer?'صح':'خطأ'}</b></p>`);
+}
+function checkMatch(){
+  if(S.locked)return;const q=S.qs[S.qi];const sels=[...document.querySelectorAll('.msel')];
+  if(sels.some(s=>s.value==='')){toast('اختر إجابة لكل عنصر أولاً');return;}
+  let all=true;
+  sels.forEach(s=>{const i=+s.dataset.i,row=$('#mrow'+i),good=(+s.value===i);s.disabled=true;if(!good)all=false;row.classList.add(good?'ok':'bad');row.style.borderColor=good?'#16a34a':'#dc2626';row.style.background=good?'#dcfce7':'#fee2e2';});
+  const key=q.pairs.map(p=>`<div>${fmtOpt(p[0])} ⟷ ${fmtOpt(p[1])}</div>`).join('');
+  feedback(all,q,all?'':`<div class="mt-1 text-slate-700 text-sm">المطابقة الصحيحة:<div class="mt-1 grid gap-1">${key}</div></div>`);
+}
+function nextQ(){
+  if(S.qi<S.qs.length-1){S.qi++;S.locked=false;render();window.scrollTo(0,0);}
+  else finishLesson();
+}
+function finishLesson(){
+  const n=S.qs.length,pts=S.res.filter(Boolean).length,p=Math.round(pts/n*100);
+  const rec=studentRec(),old=rec.lessons[S.lesson.id];
+  rec.lessons[S.lesson.id]={best:Math.max(old?old.best:0,p),last:p,pts,total:n,attempts:(old?old.attempts:0)+1,ts:Date.now()};
+  rec.updated=Date.now();saveDB();
+  S.view='result';render();window.scrollTo(0,0);
+}
+function result(){
+  const n=S.qs.length,pts=S.res.filter(Boolean).length,p=Math.round(pts/n*100),[em,msg]=endMsg(p);
+  const idx=LESSONS.findIndex(x=>x.id===S.lesson.id),nextL=LESSONS[idx+1];
+  return `<div class="max-w-2xl mx-auto p-4 md:p-6">
+   <div class="bg-white rounded-3xl shadow-xl p-6 md:p-8 text-center pop">
+    <div class="text-6xl">${em}</div>
+    <h2 class="text-2xl font-extrabold text-[#0b2a5b] mt-2">${esc(S.lesson.title)}</h2>
+    <div class="mx-auto my-5 w-40 h-40 rounded-full flex flex-col items-center justify-center text-white font-extrabold shadow-lg" style="background:conic-gradient(#1e7b4f ${p*3.6}deg,#e2e8f0 0)"><div class="w-32 h-32 rounded-full bg-white flex flex-col items-center justify-center text-[#0b2a5b]"><span class="text-4xl">${p}%</span><span class="text-sm font-bold text-slate-500">${pts} من ${n}</span></div></div>
+    <p class="text-lg font-bold">${msg}</p>
+    <p class="text-sm text-slate-500 mt-1">تم حفظ درجتك لهذا الدرس باسم ${esc(S.student.name)} (${esc(S.student.section)})</p>
+    <div class="text-right mt-5 grid gap-2">${S.qs.map((q,i)=>`<div class="flex items-start gap-2 text-sm rounded-lg px-3 py-2 ${S.res[i]?'bg-green-50':'bg-red-50'}"><span>${S.res[i]?'✅':'❌'}</span><span class="flex-1">${fmt(q.text)}</span></div>`).join('')}</div>
+    <div class="flex flex-wrap gap-3 justify-center mt-6">
+      <button data-act="lesson" data-id="${S.lesson.id}" class="bg-[#c8102e] text-white font-bold px-5 py-2.5 rounded-xl">🔁 أعد المحاولة</button>
+      ${nextL?`<button data-act="lesson" data-id="${nextL.id}" class="bg-[#1e7b4f] text-white font-bold px-5 py-2.5 rounded-xl">الدرس التالي ◀</button>`:''}
+      <button data-act="home" class="bg-[#0b2a5b] text-white font-bold px-5 py-2.5 rounded-xl">↩ قائمة الدروس</button>
+    </div></div></div>`;
+}
+
+/* ======================= لوحة المعلم / النائبة ======================= */
+function studentList(){
+  return Object.entries(DB.students).map(([id,r])=>({id,...r})).filter(r=>(!S.fsec||r.section===S.fsec)&&(!S.fq||r.name.includes(S.fq)));
+}
+function avgOf(r){const v=LESSONS.filter(l=>r.lessons[l.id]).map(l=>r.lessons[l.id].best);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null;}
+function tableHTML(){
+  const list=studentList().sort((a,b)=>a.section.localeCompare(b.section,'ar')||a.name.localeCompare(b.name,'ar'));
+  if(!list.length) return '<p class="text-center text-slate-500 py-10">لا توجد نتائج بعد. سيظهر الطلاب هنا بعد إنهائهم الدروس.</p>';
+  const isT=S.role==='teacher';
+  return `<div class="printwrap overflow-x-auto"><table class="dash"><thead><tr><th>#</th><th>الطالب</th><th>الشعبة</th>${LESSONS.map(l=>`<th title="${esc(l.title)}">${l.emoji}<br>د${l.id}</th>`).join('')}<th>المعدل</th><th>المنجز</th><th>آخر نشاط</th>${isT?'<th class="no-print">إجراء</th>':''}</tr></thead><tbody>
+  ${list.map((r,i)=>{const a=avgOf(r),dn=LESSONS.filter(l=>r.lessons[l.id]).length;
+    return `<tr><td>${i+1}</td><td class="font-bold text-right">${esc(r.name)}</td><td>${esc(r.section)}</td>
+    ${LESSONS.map(l=>{const x=r.lessons[l.id];return x?`<td><span class="pc px-2 py-0.5 rounded-full font-bold ${pcol(x.best)}" title="آخر محاولة ${x.last}% · محاولات ${x.attempts}">${x.best}%</span></td>`:'<td class="text-slate-300">—</td>';}).join('')}
+    <td>${a===null?'—':`<b class="pc px-2 py-0.5 rounded-full ${pcol(a)}">${a}%</b>`}</td><td>${dn}/${LESSONS.length}</td><td class="text-xs">${fmtDate(r.updated)}</td>
+    ${isT?`<td class="no-print"><button data-act="delstu" data-id="${esc(r.id)}" class="text-red-600 text-xs underline">حذف</button></td>`:''}</tr>`;}).join('')}
+  </tbody></table></div>`;
+}
+function statsHTML(){
+  const all=Object.values(DB.students),sections=[...new Set(all.map(r=>r.section))];
+  const avgs=all.map(avgOf).filter(x=>x!==null);const mean=avgs.length?Math.round(avgs.reduce((a,b)=>a+b,0)/avgs.length):0;
+  const att=all.reduce((a,r)=>a+Object.values(r.lessons).reduce((x,y)=>x+y.attempts,0),0);
+  const weak=LESSONS.map(l=>{const v=all.filter(r=>r.lessons[l.id]).map(r=>r.lessons[l.id].best);return {l,m:v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null,n:v.length};}).filter(x=>x.m!==null).sort((a,b)=>a.m-b.m).slice(0,3);
+  return `<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+    ${[['👥','عدد الطلاب',all.length],['🏫','عدد الشعب',sections.length],['📊','متوسط الأداء',mean+'%'],['🔁','إجمالي المحاولات',att]].map(x=>`<div class="bg-white rounded-2xl shadow p-4 text-center"><div class="text-2xl">${x[0]}</div><div class="text-2xl font-extrabold text-[#0b2a5b]">${x[2]}</div><div class="text-xs text-slate-500">${x[1]}</div></div>`).join('')}</div>
+    ${weak.length?`<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-4 text-sm"><b>⚠️ أكثر الدروس حاجة للدعم:</b> ${weak.map(w=>`${esc(w.l.title)} (${w.m}% · ${w.n} طالب)`).join(' ، ')}</div>`:''}`;
+}
+function dash(){
+  const isT=S.role==='teacher';
+  const secs=[...new Set(Object.values(DB.students).map(r=>r.section))].sort();
+  const title=isT?'لوحة تحكم المعلم – '+TEACHER:'تقارير النائبة الأكاديمية – أ. '+DEPUTY;
+  return `<div class="max-w-7xl mx-auto p-4 md:p-6">
+   <div class="hero pattern text-white rounded-3xl p-5 mb-4 flex flex-wrap items-center justify-between gap-3">
+     <div><p class="text-amber-300 text-sm font-bold">${esc(SCHOOL)}</p><h1 class="text-xl md:text-2xl font-extrabold">${esc(title)}</h1><p class="text-sm text-white/80">مراجعة الرياضيات – الصف العاشر عام – ${isT?'صلاحية كاملة':'صلاحية الاطلاع فقط'}</p></div>
+     <button data-act="logout" class="no-print bg-white/15 border border-white/30 rounded-lg px-4 py-2 text-sm">خروج</button></div>
+   <div class="no-print flex gap-2 mb-4 flex-wrap">
+     <button data-act="tab" data-t="students" class="px-4 py-2 rounded-xl font-bold ${S.tab==='students'?'bg-[#0b2a5b] text-white':'bg-white border'}">📋 نتائج الطلاب</button>
+     ${isT?`<button data-act="tab" data-t="manage" class="px-4 py-2 rounded-xl font-bold ${S.tab==='manage'?'bg-[#0b2a5b] text-white':'bg-white border'}">⚙️ إدارة الأسئلة والبيانات</button>`:''}
+   </div>
+   ${S.tab==='students'||!isT?`
+     ${statsHTML()}
+     <div class="no-print flex flex-wrap gap-2 items-center mb-3">
+       <input id="fq" value="${esc(S.fq)}" placeholder="🔍 بحث باسم الطالب" class="border-2 border-slate-300 rounded-xl px-3 py-2 flex-1 min-w-[160px]">
+       <select id="fsec" class="border-2 border-slate-300 rounded-xl px-3 py-2 bg-white"><option value="">كل الشعب</option>${secs.map(s=>`<option ${s===S.fsec?'selected':''}>${esc(s)}</option>`).join('')}</select>
+       <button data-act="print" class="bg-slate-700 text-white font-bold px-4 py-2 rounded-xl">🖨️ طباعة</button>
+       <button data-act="csv" class="bg-[#1e7b4f] text-white font-bold px-4 py-2 rounded-xl">📄 تصدير Excel (CSV)</button>
+     </div>
+     <h2 class="hidden print:block text-center font-bold mb-2">${esc(SCHOOL)} – تقرير نتائج مراجعة الرياضيات – الصف العاشر عام</h2>
+     <div id="tbl" class="bg-white rounded-2xl shadow p-3">${tableHTML()}</div>
+     <p class="text-xs text-slate-500 mt-2">الأرقام تمثّل <b>أفضل درجة</b> لكل درس. 🟢 85%+ · 🟠 60–84% · 🔴 أقل من 60%</p>`:`
+     <div class="grid md:grid-cols-2 gap-4">
+      <div class="bg-white rounded-2xl shadow p-4">
+        <h3 class="font-extrabold text-[#0b2a5b] mb-2">📥 استيراد / تصدير النتائج</h3>
+        <p class="text-sm text-slate-600 mb-3">لدمج نتائج الطلاب من أجهزة مختلفة: يحفظ كل طالب ملف «نتيجتي» ثم تستورده هنا.</p>
+        <div class="flex flex-wrap gap-2"><button data-act="expjson" class="bg-[#0b2a5b] text-white font-bold px-4 py-2 rounded-xl text-sm">⬇ تصدير الكل (JSON)</button>
+        <label class="bg-[#1e7b4f] text-white font-bold px-4 py-2 rounded-xl text-sm cursor-pointer">⬆ استيراد ملف نتائج<input id="impfile" type="file" accept=".json" class="hidden"></label></div>
+        <hr class="my-4"><h3 class="font-extrabold text-red-700 mb-2">🗑️ تصفير النتائج</h3>
+        <p class="text-sm text-slate-600 mb-3">يحذف جميع درجات الطلاب من هذا المتصفح (ولا يحذف الأسئلة المضافة).</p>
+        <button data-act="reset" class="bg-red-600 text-white font-bold px-4 py-2 rounded-xl text-sm">تصفير جميع النتائج</button>
+      </div>
+      <div class="bg-white rounded-2xl shadow p-4">
+        <h3 class="font-extrabold text-[#0b2a5b] mb-2">➕ إضافة أسئلة جديدة (JSON)</h3>
+        <p class="text-sm text-slate-600 mb-2">الصق مصفوفة أسئلة بالصيغة التالية ثم اضغط «إضافة». عدد الأسئلة المضافة حالياً: <b>${DB.custom.length}</b></p>
+        <textarea id="newq" dir="ltr" rows="9" class="w-full border-2 border-slate-300 rounded-xl p-2 text-xs font-mono" placeholder='[{"lesson":5,"type":"mcq","text":"حلّل $x^{2}+5x+6$","options":["(x+2)(x+3)","(x+1)(x+6)","(x-2)(x-3)"],"answer":0,"explain":"عددان حاصل ضربهما 6 ومجموعهما 5","img":"","ctx":["📐","هندسة"]},{"lesson":3,"type":"tf","text":"...","answer":true,"explain":"..."},{"lesson":7,"type":"match","text":"صِل","pairs":[["x^{2}-9","(x+3)(x-3)"],["x^{2}-4","(x+2)(x-2)"]],"explain":"..."}]'></textarea>
+        <p class="text-xs text-slate-500 mt-1">lesson = رقم الدرس (1 إلى 14) · type = mcq | tf | match · answer = ترتيب الإجابة الصحيحة (يبدأ من 0) أو true/false</p>
+        <div class="flex gap-2 mt-2"><button data-act="addq" class="bg-[#c8102e] text-white font-bold px-4 py-2 rounded-xl text-sm">إضافة الأسئلة</button>
+        <button data-act="clearq" class="bg-slate-200 font-bold px-4 py-2 rounded-xl text-sm">حذف الأسئلة المضافة</button></div>
+      </div>
+     </div>`}
+  </div>`;
+}
+function download(name,text,type){const b=new Blob([text],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+function exportCSV(){
+  const rows=[['الطالب','الشعبة',...LESSONS.map(l=>'د'+l.id+' '+l.title),'المعدل %','الدروس المنجزة','آخر نشاط']];
+  studentList().forEach(r=>rows.push([r.name,r.section,...LESSONS.map(l=>r.lessons[l.id]?r.lessons[l.id].best:''),avgOf(r)===null?'':avgOf(r),LESSONS.filter(l=>r.lessons[l.id]).length,fmtDate(r.updated)]));
+  download('نتائج_مراجعة_الرياضيات.csv','\uFEFF'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n'),'text/csv;charset=utf-8');
+}
+function mergeInto(data){
+  let n=0;
+  Object.entries(data.students||{}).forEach(([id,r])=>{
+    const cur=DB.students[id]||(DB.students[id]={name:r.name,section:r.section,lessons:{},updated:0});
+    Object.entries(r.lessons||{}).forEach(([lid,x])=>{
+      const o=cur.lessons[lid];
+      if(!o)cur.lessons[lid]=x;else cur.lessons[lid]={...(x.ts>o.ts?x:o),best:Math.max(o.best,x.best),attempts:o.attempts+x.attempts};
+    });
+    cur.updated=Math.max(cur.updated||0,r.updated||0);n++;
+  });
+  saveDB();return n;
+}
+
+/* ======================= الرسم والأحداث ======================= */
+function render(){
+  const v=S.view;
+  $('#app').innerHTML=v==='landing'?landing():v==='home'?home():v==='quiz'?quiz():v==='result'?result():dash();
+  if(v==='dash'){
+    const fq=$('#fq'),fs=$('#fsec');
+    if(fq)fq.addEventListener('input',e=>{S.fq=e.target.value.trim();$('#tbl').innerHTML=tableHTML();});
+    if(fs)fs.addEventListener('change',e=>{S.fsec=e.target.value;$('#tbl').innerHTML=tableHTML();});
+    const imp=$('#impfile');
+    if(imp)imp.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const n=mergeInto(JSON.parse(rd.result));toast('✅ تم استيراد نتائج '+n+' طالب');render();}catch(err){toast('⚠️ الملف غير صالح');}};rd.readAsText(f);});
+  }
+  if(v==='landing'){['sname','ssec'].forEach(id=>{const e=$('#'+id);if(e)e.addEventListener('keydown',ev=>{if(ev.key==='Enter')startStudent();});});}
+}
+function startStudent(){
+  const n=($('#sname').value||'').trim(),s=($('#ssec').value||'').trim();
+  if(n.length<3||!s){$('#lerr').textContent='يرجى كتابة اسم الطالب (3 أحرف على الأقل) والشعبة';return;}
+  const id=sid(n,s);
+  if(!DB.students[id])DB.students[id]={name:n,section:s,lessons:{},updated:Date.now()};
+  saveDB();S.student={id,name:DB.students[id].name,section:DB.students[id].section};S.view='home';render();window.scrollTo(0,0);
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;
+  switch(a){
+    case 'start':startStudent();break;
+    case 'teacher':askPassword('teacher');break;
+    case 'deputy':askPassword('deputy');break;
+    case 'pwok':checkPw(b.dataset.role);break;
+    case 'closemodal':closeModal();break;
+    case 'logout':S.view='landing';S.student=null;S.role=null;S.fq='';S.fsec='';render();break;
+    case 'home':S.view='home';render();break;
+    case 'lesson':startLesson(+b.dataset.id);break;
+    case 'opt':answerMcq(+b.dataset.pos);break;
+    case 'tf':answerTf(b.dataset.v==='1');break;
+    case 'checkmatch':checkMatch();break;
+    case 'next':nextQ();break;
+    case 'tab':S.tab=b.dataset.t;render();break;
+    case 'print':window.print();break;
+    case 'csv':exportCSV();break;
+    case 'exportme':{const r=DB.students[S.student.id];download('نتيجتي_'+S.student.name.replace(/\s+/g,'_')+'.json',JSON.stringify({students:{[S.student.id]:r}},null,1),'application/json');break;}
+    case 'expjson':download('نتائج_الطلاب_كاملة.json',JSON.stringify({students:DB.students},null,1),'application/json');break;
+    case 'reset':if(confirm('هل أنت متأكد من تصفير جميع نتائج الطلاب؟ لا يمكن التراجع عن هذا الإجراء.')){DB.students={};saveDB();toast('تم تصفير النتائج');render();}break;
+    case 'delstu':if(confirm('حذف نتائج هذا الطالب؟')){delete DB.students[b.dataset.id];saveDB();render();}break;
+    case 'addq':{
+      try{
+        const arr=JSON.parse($('#newq').value);if(!Array.isArray(arr))throw 0;
+        arr.forEach(q=>{if(!q.lesson||!q.text||!q.type)throw 0;});
+        DB.custom.push(...arr);saveDB();toast('✅ أُضيف '+arr.length+' سؤال');render();
+      }catch(err){toast('⚠️ صيغة JSON غير صحيحة، راجع المثال');}
+      break;}
+    case 'clearq':if(confirm('حذف جميع الأسئلة المضافة؟')){DB.custom=[];saveDB();render();}break;
+  }
+});
+render();
+</script>
+</body>
+</html>
